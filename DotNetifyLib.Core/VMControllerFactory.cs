@@ -1,4 +1,4 @@
-﻿/* 
+﻿/*
 Copyright 2017 Dicky Suryadi
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,7 +15,6 @@ limitations under the License.
  */
 
 using System;
-using Microsoft.Extensions.Caching.Memory;
 
 namespace DotNetify
 {
@@ -25,30 +24,38 @@ namespace DotNetify
    public class VMControllerFactory : IVMControllerFactory
    {
       /// <summary>
-      /// View model controllers by the client connection Ids.
+      /// For caching view model controllers by the client connection Ids.
       /// </summary>
       private readonly IMemoryCache _controllersCache;
 
       /// <summary>
-      /// How long to keep a view model controller in memory after it hasn't been accessed for a while.
+      /// For creating dependency injection service scope.
       /// </summary>
-      public TimeSpan CacheExpiration { get; set; } = new TimeSpan(0, 20, 0);
+      private readonly IVMServiceScopeFactory _serviceScopeFactory;
+
+      /// <summary>
+      /// How long to keep a view model controller in memory after it hasn't been accessed for a while. Default to never expire.
+      /// </summary>
+      public TimeSpan? CacheExpiration { get; set; }
 
       /// <summary>
       /// Delegate to return the response back to the client.
       /// </summary>
       public VMController.VMResponseDelegate ResponseDelegate { get; set; }
 
-      public VMControllerFactory(IMemoryCache memoryCache)
+      /// <summary>
+      /// Constructor.
+      /// </summary>
+      /// <param name="memoryCache">Memory cache for storing the view model controllers.</param>
+      /// <param name="serviceScopeFactory">Factory for dependency injection service scope.</param>
+      public VMControllerFactory(IMemoryCache memoryCache, IVMServiceScopeFactory serviceScopeFactory)
       {
-         if (memoryCache == null)
-            throw new ArgumentNullException("No service of type IMemoryCache has been registered.");
-
-         _controllersCache = memoryCache;
+         _controllersCache = memoryCache ?? throw new ArgumentNullException("No service of type IMemoryCache has been registered.");
+         _serviceScopeFactory = serviceScopeFactory;
       }
 
       /// <summary>
-      /// Creates a view model controller and assigns it a key. 
+      /// Creates a view model controller and assigns it a key.
       /// On subsequent calls, use the same key to return the same object.
       /// </summary>
       /// <param name="key">Identifies the object.</param>
@@ -57,10 +64,9 @@ namespace DotNetify
       {
          var cache = _controllersCache;
 
-         Lazy<VMController> cachedValue;
-         if (!cache.TryGetValue(key, out cachedValue))
+         if (!cache.TryGetValue(key, out Lazy<VMController> cachedValue))
          {
-            cachedValue = new Lazy<VMController>(() => new VMController(ResponseDelegate));
+            cachedValue = new Lazy<VMController>(() => new VMController(ResponseDelegate, _serviceScopeFactory.CreateScope()));
             cache.Set(key, cachedValue, GetCacheEntryOptions());
          }
          return cachedValue?.Value;
@@ -89,9 +95,13 @@ namespace DotNetify
       /// <returns>Cache entry options.</returns>
       private MemoryCacheEntryOptions GetCacheEntryOptions()
       {
-         return new MemoryCacheEntryOptions()
-         .SetSlidingExpiration(CacheExpiration)
-         .RegisterPostEvictionCallback((key, value, reason, substate) => ((value as Lazy<VMController>).Value as IDisposable).Dispose());
+         var options = new MemoryCacheEntryOptions()
+            .RegisterPostEvictionCallback((key, value, reason, substate) => ((value as Lazy<VMController>).Value as IDisposable).Dispose());
+
+         if (CacheExpiration.HasValue)
+            options.SetSlidingExpiration(CacheExpiration.Value);
+
+         return options;
       }
    }
 }

@@ -1,20 +1,19 @@
 {
    "name": "dotnetify",
-   "version": "2.0.4-beta",
+   "version": "3.0.0-pre",
    "description": "Simple, lightweight, yet powerful way to build realtime .NET web apps.",
-   "main": "dist/dotnetify-react.js",
+   "main": "index.js",
    "files": [
       "dist/*.js",
+      "dist/*.ts",
+      "dist/typings",
       "README.*",
       "LICENSE.*"
    ],
    "dependencies": {
-      "jquery": "^3.1.1",
-      "jquery.ui.widget": "^1.10.3",
-      "signalr": "^2.2.1",
-      "knockout": "3.4.1",
-      "react": "15.4.2",
-      "react-dom": "15.4.2"
+      "jquery-deferred": "^0.3.1",
+      "create-react-class": "^15.6.2",
+      "prop-types": "^15.6.0"
    },
    "repository": {
       "type": "git",
@@ -23,8 +22,9 @@
    "keywords": [
       "dotnetify",
       "signalr",
-      "knockout",
       "react",
+      "react-native",
+      "knockout",
       "mvvm",
       "web",
       "mobile",
